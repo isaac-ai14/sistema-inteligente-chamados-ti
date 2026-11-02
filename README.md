@@ -90,3 +90,13 @@ O back-end, a integração com IA, o armazenamento e as notificações estão im
 O projeto funciona atualmente em ambiente local e depende da execução dos serviços Node.js, MySQL, n8n e Ollama.
 
 As credenciais e configurações privadas não estão incluídas no repositório.
+
+## 🎥 Demonstração do projeto
+
+Gravei uma demonstração prática do STI, mostrando o fluxo
+completo de abertura e classificação automática de chamados.
+
+No vídeo, apresento a integração entre n8n, Ollama,
+API REST com Node.js, MySQL e Telegram.
+
+▶️ [Assista à demonstração no YouTube](https://youtu.be/QZgpF_Jzy1w)
