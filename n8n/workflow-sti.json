@@ -1,0 +1,249 @@
+{
+  "name": "workflow-sti",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sti-chamados",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -176,
+        0
+      ],
+      "id": "eed9ff18-b72c-485e-b2d8-ac369d7ada29",
+      "name": "Webhook",
+      "webhookId": "b1341e51-57ec-407d-b928-062ecc038876"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5221082e-11a0-4bcd-986f-8c855fdfbbfe",
+              "name": "=titulo",
+              "value": "={{ $json.body.titulo }}",
+              "type": "string"
+            },
+            {
+              "id": "5b4aced2-1cd8-4879-90fa-879ea0cfdf49",
+              "name": "descricao",
+              "value": "={{ $json.body.descricao }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        48,
+        0
+      ],
+      "id": "c587ec80-707a-4017-8259-70cffacf9fab",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "=\n{{ JSON.stringify({\n  model: \"llama3.2:3b\",\n\n  prompt: `Você é um especialista em suporte de TI.\n\nClassifique o chamado abaixo usando exatamente uma categoria e uma prioridade.\n\nCATEGORIAS:\n- Hardware: problemas físicos em computadores, impressoras e periféricos.\n- Software: problemas em programas e aplicativos.\n- Rede: problemas com internet, Wi-Fi e conectividade.\n- Acesso: problemas com senhas, login, contas e permissões.\n\nPRIORIDADES:\n- Baixa: problema pequeno que não impede o trabalho.\n- Média: afeta um funcionário, mas permite continuar trabalhando.\n- Alta: impede o trabalho de um funcionário ou setor.\n- Crítica: interrompe um serviço essencial para toda a empresa.\n\nEXEMPLOS:\nProblema: Minha senha do e-mail não funciona.\nClassificação: {\"categoria\":\"Acesso\",\"prioridade\":\"Alta\"}\n\nProblema: A internet de toda a empresa caiu.\nClassificação: {\"categoria\":\"Rede\",\"prioridade\":\"Crítica\"}\n\nProblema: O mouse está com pequenos problemas, mas ainda funciona.\nClassificação: {\"categoria\":\"Hardware\",\"prioridade\":\"Baixa\"}\n\nAGORA CLASSIFIQUE:\nTítulo: ${$json.titulo}\nDescrição: ${$json.descricao}\n\nRetorne somente categoria e prioridade em JSON.`,\n\n  stream: false,\n\n  format: {\n    type: \"object\",\n    properties: {\n      categoria: {\n        type: \"string\",\n        enum: [\"Hardware\", \"Software\", \"Rede\", \"Acesso\"]\n      },\n      prioridade: {\n        type: \"string\",\n        enum: [\"Baixa\", \"Média\", \"Alta\", \"Crítica\"]\n      }\n    },\n    required: [\"categoria\", \"prioridade\"],\n    additionalProperties: false\n  },\n\n  options: {\n    temperature: 0\n  }\n}) }}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        304,
+        0
+      ],
+      "id": "9f3b9001-b9e4-4ac5-bcf8-3c67d5355eb3",
+      "name": "Classificar chamado - Ollama"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:3001/chamados",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "=\n{{ JSON.stringify({\n  titulo: $json.titulo,\n  descricao: $json.descricao,\n  categoria: $json.categoria,\n  prioridade: $json.prioridade\n}) }}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        784,
+        0
+      ],
+      "id": "bca50058-55a0-4f44-bfff-39c0aea47a62",
+      "name": "HTTP Request (API STI)"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst resposta = $input.first().json.response;\n\nconst classificacao = JSON.parse(resposta);\n\nconst chamado = $('Edit Fields').first().json;\n\nconst categorias = ['Hardware', 'Software', 'Rede', 'Acesso'];\nconst prioridades = ['Baixa', 'Média', 'Alta', 'Crítica'];\n\nif (!categorias.includes(classificacao.categoria)) {\n  throw new Error('Categoria inválida retornada pela IA');\n}\n\nif (!prioridades.includes(classificacao.prioridade)) {\n  throw new Error('Prioridade inválida retornada pela IA');\n}\n\nreturn [\n  {\n    json: {\n      titulo: chamado.titulo,\n      descricao: chamado.descricao,\n      categoria: classificacao.categoria,\n      prioridade: classificacao.prioridade\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        528,
+        0
+      ],
+      "id": "9b3355f6-ef40-4362-b37f-bf4f7f98848f",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "517be6d3-1568-4ee6-9c9d-b72247751066",
+              "leftValue": "={{ $('Code in JavaScript').first().json.prioridade }}",
+              "rightValue": "Alta",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "c903d572-9682-46e2-bfba-4d799da8e47e",
+              "leftValue": "={{ $('Code in JavaScript').first().json.prioridade }}",
+              "rightValue": "Crítica",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1008,
+        0
+      ],
+      "id": "961020ba-57cf-4b8c-b11f-70b9f6944f2c",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "SEU_CHAT_ID",
+        "text": "={{ `🚨 ALERTA STI — NOVO CHAMADO  🆔 Chamado #${$json.id}  \n📋 Título: ${$('Edit Fields').first().json.titulo}  \n🏷️ Categoria: ${$('Code in JavaScript').first().json.categoria}  \n⚠️ Prioridade: ${$('Code in JavaScript').first().json.prioridade}  \n📝 Descrição: ${$('Edit Fields').first().json.descricao}  \nVerifique o chamado no sistema STI.` }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1232,
+        -96
+      ],
+      "id": "a48f1e9f-71b9-49ea-a924-9847920dfd72",
+      "name": "Send a text message",
+      "webhookId": "1ac9b485-607a-4db2-8e45-4e76f8eca3ea",
+      "credentials": {
+        "telegramApi": {
+          "id": "DGu3HZtjwTPYRNnd",
+          "name": "Telegram account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Classificar chamado - Ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classificar chamado - Ollama": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request (API STI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request (API STI)": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "33a7c8e9-82b9-45de-8d13-26cae29bde30",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5744ff0ab059f71b467cbfe641ba29b406eae3e9070cac7bbab82755fad4a063"
+  },
+  "nodeGroups": [],
+  "id": "JCm0k86W9rCZNoge",
+  "tags": []
+}
